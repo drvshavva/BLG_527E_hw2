@@ -1,10 +1,11 @@
 from torch.utils.tensorboard import SummaryWriter
+from torchsummary import summary
 
 from datetime import datetime
 
 from autoencoder.network import Autoencoder
 from autoencoder.train import train_autoencoder, log_latent_space_visualization
-from utils.load_fashion_mnist import load_fashion_mnist
+from autoencoder.load_fashion_mnist import load_fashion_mnist
 
 # parameters
 LATENT_DIM = 64
@@ -19,6 +20,7 @@ if __name__ == "__main__":
     # Create model
     model = Autoencoder(latent_dim=LATENT_DIM)
     print(f"Created autoencoder with latent dimension: {LATENT_DIM}")
+    print(summary(model, input_size=(1, 28, 28)))
 
     # Train model
     print("Training autoencoder...")
@@ -34,3 +36,5 @@ if __name__ == "__main__":
         writer = SummaryWriter(log_dir)
         log_latent_space_visualization(model, test_loader, writer, NUM_EPOCHS)
         writer.close()
+
+    print("Done :)")

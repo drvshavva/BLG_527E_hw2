@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
 from datetime import datetime
 import torch
 import torchvision
@@ -11,7 +12,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 
-# 3. Training Function with TensorBoard
+# 3. Training Function
 def train_autoencoder(model, train_loader, test_loader, epochs=20, lr=1e-3, log_dir=None):
     """Train the autoencoder with TensorBoard logging"""
     criterion = nn.MSELoss()
@@ -76,9 +77,13 @@ def train_autoencoder(model, train_loader, test_loader, epochs=20, lr=1e-3, log_
 
         # Log sample reconstructions every 5 epochs
         if epoch % 5 == 0:
-            log_sample_reconstructions(model, test_loader, writer, epoch)
+            log_sample_reconstructions(model, test_loader, writer, epoch, criterion=criterion)
 
         print(f'Epoch [{epoch + 1}/{epochs}], Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}')
+
+    # Final Reconstruction Loss Log
+    writer.add_scalar('Final_Loss/Train', train_losses[-1], epochs)
+    writer.add_scalar('Final_Loss/Validation', val_losses[-1], epochs)
 
     # Log final generated samples
     log_generated_samples(model, writer, epochs)
@@ -87,8 +92,7 @@ def train_autoencoder(model, train_loader, test_loader, epochs=20, lr=1e-3, log_
     return train_losses, val_losses
 
 
-# 4. TensorBoard Logging Functions
-def log_sample_reconstructions(model, test_loader, writer, epoch, num_images=8):
+def log_sample_reconstructions(model, test_loader, writer, epoch, num_images=8, criterion=None):
     """Log sample reconstructions to TensorBoard"""
     model.eval()
     with torch.no_grad():
@@ -103,6 +107,10 @@ def log_sample_reconstructions(model, test_loader, writer, epoch, num_images=8):
         img_grid = torchvision.utils.make_grid(comparison, nrow=num_images, normalize=False)
         writer.add_image(f'Reconstructions/Epoch_{epoch}', img_grid, epoch)
 
+        if criterion is not None:
+            recon_loss = criterion(reconstructed, data).item()
+            writer.add_scalar(f'Reconstruction/Sample_Batch_Loss_{epoch}', recon_loss, epoch)
+
 
 def log_generated_samples(model, writer, epoch, num_samples=16):
     """Log generated samples to TensorBoard"""
@@ -112,8 +120,10 @@ def log_generated_samples(model, writer, epoch, num_samples=16):
         z = torch.randn(num_samples, model.latent_dim).to(device)
         generated = model.decode(z)
 
+        generated_upscaled = F.interpolate(generated, scale_factor=4, mode='bilinear', align_corners=False)
+
         # Log to TensorBoard
-        img_grid = torchvision.utils.make_grid(generated, nrow=4, normalize=False)
+        img_grid = torchvision.utils.make_grid(generated_upscaled, nrow=4, normalize=False)
         writer.add_image('Generated_Samples', img_grid, epoch)
 
 
@@ -145,5 +155,3 @@ def log_latent_space_visualization(model, test_loader, writer, epoch, num_sample
     metadata = [class_names[label] for label in labels]
 
     writer.add_embedding(latent_vectors, metadata=metadata, global_step=epoch)
-
-

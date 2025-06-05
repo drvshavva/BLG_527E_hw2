@@ -35,7 +35,7 @@ class Decoder(nn.Module):
             nn.Linear(256, 512),
             nn.ReLU(),
             nn.Linear(512, 28 * 28),
-            nn.Sigmoid()  # Output between [0, 1] as specified
+            nn.Sigmoid()  # Output between [0, 1]
         )
 
     def forward(self, x):
